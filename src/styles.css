@@ -1,0 +1,12 @@
+.App {
+  text-align: center;
+  font-family: Arial, sans-serif;
+}
+
+.Card {
+  cursor: pointer;
+}
+
+.modal {
+  z-index: 1050; /* Bootstrap modal z-index */
+}
