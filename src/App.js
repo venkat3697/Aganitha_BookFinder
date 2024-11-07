@@ -10,6 +10,7 @@ import {
   Card,
   Modal,
   ListGroup,
+  Alert,
 } from "react-bootstrap";
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
   const [selectedBook, setSelectedBook] = useState(null);
   const [favorites, setFavorites] = useState([]);
   const [recentlyViewed, setRecentlyViewed] = useState([]);
+  const [errorMessage, setErrorMessage] = useState("");
   const maxResults = 10;
 
   useEffect(() => {
@@ -29,31 +31,48 @@ function App() {
   }, []);
 
   const fetchBooks = async () => {
-    try {
-      const response = await axios.get(
-        `https://www.googleapis.com/books/v1/volumes?q=${query}&orderBy=${sortOption}&startIndex=${startIndex}&maxResults=${maxResults}`
-      );
-      setBooks(response.data.items || []);
-    } catch (error) {
-      console.error("Error fetching data:", error);
+    if (query) {
+      try {
+        const response = await axios.get(
+          `https://www.googleapis.com/books/v1/volumes?q=${query}&orderBy=${sortOption}&startIndex=${startIndex}&maxResults=${maxResults}`
+        );
+        if (response.data.items && response.data.items.length > 0) {
+          setBooks(response.data.items);
+          setErrorMessage(""); // Clear error if books are found
+        } else {
+          setBooks([]);
+          setErrorMessage("No results found."); // Set error if no books found
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setErrorMessage("Network error occurred. Please try again later.");
+        setBooks([]); // Clear any previous results on error
+      }
+    } else {
+      setErrorMessage("Please Enter Book, Title, Author");
     }
   };
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setStartIndex(0);
-    fetchBooks();
+    setStartIndex(0); // Reset to first page on new search
+    fetchBooks(); // Fetch books only when search is triggered
   };
 
   const handlePagination = (direction) => {
-    setStartIndex((prev) =>
-      direction === "next" ? prev + maxResults : Math.max(prev - maxResults, 0)
-    );
+    setStartIndex((prev) => {
+      if (direction === "next") {
+        return prev + maxResults; // Move to next page
+      } else if (direction === "previous" && prev > 0) {
+        return prev - maxResults; // Move to previous page
+      }
+      return prev;
+    });
   };
 
   const handleSortChange = (e) => {
     setSortOption(e.target.value);
-    setStartIndex(0);
+    setStartIndex(0); // Reset to first page when sorting changes
   };
 
   const addToFavorites = (book) => {
@@ -70,32 +89,48 @@ function App() {
     ]);
   };
 
-  // Handle user login (set username)
   const handleLogin = (e) => {
     e.preventDefault();
-    if (e.target.username.value) {
+    if (e.target.username.value.length > 0) {
       setUsername(e.target.username.value);
+      setErrorMessage("");
+    } else {
+      setErrorMessage("Please Enter name");
     }
   };
+
+  useEffect(() => {
+    if (query) {
+      fetchBooks(); // Fetch books whenever query, startIndex, or sortOption changes
+    }
+  }, [query, startIndex, sortOption]); // Added startIndex as a dependency
 
   return (
     <Container className="App">
       {!username ? (
-        <Form
-          onSubmit={handleLogin}
-          className="d-flex justify-content-center my-4"
-        >
-          <Form.Control
-            name="username"
-            type="text"
-            placeholder="Enter your name"
-            className="me-2"
-            style={{ maxWidth: "300px" }}
-          />
-          <Button type="submit" variant="primary">
-            Start
-          </Button>
-        </Form>
+        <>
+          <Form
+            onSubmit={handleLogin}
+            className="d-flex justify-content-center my-4"
+          >
+            <Form.Control
+              name="username"
+              type="text"
+              placeholder="Enter your name"
+              className="me-2"
+              style={{ maxWidth: "300px" }}
+            />
+            <Button type="submit" variant="primary">
+              Start
+            </Button>
+          </Form>
+
+          {errorMessage && (
+            <Alert variant="warning" className="text-center">
+              {errorMessage}
+            </Alert>
+          )}
+        </>
       ) : (
         <>
           <h1 className="text-center my-4">Welcome, {username}!</h1>
@@ -117,6 +152,13 @@ function App() {
               Search
             </Button>
           </Form>
+
+          {/* Error Message */}
+          {errorMessage && (
+            <Alert variant="warning" className="text-center">
+              {errorMessage}
+            </Alert>
+          )}
 
           {/* Sort and Pagination */}
           <Row className="justify-content-center mb-4">
